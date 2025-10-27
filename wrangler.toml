@@ -1,0 +1,46 @@
+name = "billy-bullshit"
+main = "src/index.ts"
+compatibility_date = "2024-01-01"
+node_compat = true
+
+# Account and zone settings (update with your Cloudflare account)
+# account_id = "your-account-id"
+# zone_id = "your-zone-id"
+
+[env.production]
+name = "billy-bullshit-prod"
+routes = [
+  { pattern = "billy.chitty.cc", custom_domain = true }
+]
+
+# KV namespaces for conversation history
+[[kv_namespaces]]
+binding = "CONVERSATIONS"
+id = "your-kv-namespace-id"
+preview_id = "your-preview-kv-namespace-id"
+
+# AI binding for Cloudflare Workers AI
+[ai]
+binding = "AI"
+
+# Secrets (set via: wrangler secret put SECRET_NAME)
+# - ANTHROPIC_API_KEY (for Claude API)
+# - OPENAI_API_KEY (optional, for OpenAI fallback)
+
+# Environment variables
+[vars]
+ENVIRONMENT = "development"
+MAX_CONVERSATION_LENGTH = "20"
+DEFAULT_MODEL = "@cf/meta/llama-3.1-8b-instruct"
+
+[env.production.vars]
+ENVIRONMENT = "production"
+DEFAULT_MODEL = "@cf/meta/llama-3.1-8b-instruct"
+
+# Limits
+[limits]
+cpu_ms = 50000
+
+# Observability
+[observability]
+enabled = true

@@ -1,0 +1,37 @@
+{
+  "name": "billy-bullshit",
+  "version": "1.0.0",
+  "description": "Billy Bullshit - A no-BS AI agent on Cloudflare Workers",
+  "main": "src/index.ts",
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "deploy:production": "wrangler deploy --env production",
+    "tail": "wrangler tail",
+    "build": "esbuild src/index.ts --bundle --format=esm --outfile=dist/index.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "validate": "npm run typecheck && npm run build"
+  },
+  "keywords": [
+    "cloudflare-workers",
+    "ai-agent",
+    "no-bs",
+    "billy-bullshit"
+  ],
+  "author": "ChittyOS Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20231218.0",
+    "@types/node": "^20.10.6",
+    "esbuild": "^0.19.11",
+    "typescript": "^5.3.3",
+    "vitest": "^1.1.0",
+    "wrangler": "^3.22.1"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.18.0",
+    "hono": "^3.12.8"
+  }
+}
