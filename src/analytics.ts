@@ -131,28 +131,49 @@ export class AnalyticsService {
 
 	/**
 	 * Parse BS score from review text (Billy includes it in responses)
+	 * Expected format: "BS SCORE: 7/10" or "BS Level: 7/10" or "BS Level: 7"
+	 * 
+	 * Note: This relies on Billy's consistent output format as defined in
+	 * billy-agent.ts reviewCode() method. If the AI model changes its output
+	 * format, this parsing may fail and return undefined.
+	 * 
+	 * @returns BS score (1-10) if found, undefined if not found or invalid
 	 */
 	parseBsScore(reviewText: string): number | undefined {
 		const bsScoreMatch = reviewText.match(/BS\s+(?:SCORE|Level):\s*(\d+)(?:\/10)?/i);
-		return bsScoreMatch ? parseInt(bsScoreMatch[1], 10) : undefined;
+		if (!bsScoreMatch) {
+			return undefined;
+		}
+		
+		const score = parseInt(bsScoreMatch[1], 10);
+		
+		// Validate score is in expected range (1-10)
+		if (isNaN(score) || score < 1 || score > 10) {
+			console.warn(`Invalid BS score parsed: ${score}`);
+			return undefined;
+		}
+		
+		return score;
 	}
 
 	/**
 	 * Parse code smells from review text
+	 * Looks for Billy's structured issue markers
 	 */
 	parseCodeSmells(reviewText: string): string[] {
 		const smells: string[] = [];
 		
-		if (reviewText.includes('🚩') || reviewText.includes('CRITICAL')) {
+		// Use word boundaries and more specific patterns to avoid false matches
+		if (/🚩\s*CRITICAL/i.test(reviewText) || /\bCRITICAL\s+ISSUES\b/i.test(reviewText)) {
 			smells.push('critical');
 		}
-		if (reviewText.includes('⚠️') || reviewText.includes('MAJOR')) {
+		if (/⚠️\s*MAJOR/i.test(reviewText) || /\bMAJOR\s+ISSUES\b/i.test(reviewText)) {
 			smells.push('major');
 		}
-		if (reviewText.includes('💩') || reviewText.includes('BS')) {
+		if (/💩\s*BS/i.test(reviewText) || /\bBS\s+DETECTOR\b/i.test(reviewText)) {
 			smells.push('bs');
 		}
-		if (reviewText.includes('🤦') || reviewText.includes('WTAF')) {
+		if (/🤦\s*WTAF/i.test(reviewText) || /\bWTAF\s+MOMENTS\b/i.test(reviewText)) {
 			smells.push('wtaf');
 		}
 
