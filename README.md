@@ -62,13 +62,24 @@ curl http://localhost:8787
 
 ### Deployment
 
+**Quick Start:**
 ```bash
-# Deploy to production
-npm run deploy
+# 1. Set up KV namespaces
+npm run setup:kv
 
-# Or deploy to staging
-wrangler deploy --env staging
+# 2. Deploy to production (automated)
+npm run deploy:prod
+
+# 3. Test deployment
+npm run test:deployment
 ```
+
+**See also:**
+- 📋 [Quick Deployment Guide](QUICK_DEPLOY.md) - Fast track to production
+- 📚 [Full Deployment Guide](DEPLOYMENT.md) - Detailed instructions
+- ✅ [Deployment Checklist](DEPLOYMENT_CHECKLIST.md) - Step-by-step checklist
+- 🔒 [Security Guide](SECURITY.md) - Security best practices
+- 📊 [Monitoring Guide](MONITORING.md) - Post-deployment monitoring
 
 ## API Endpoints
 
