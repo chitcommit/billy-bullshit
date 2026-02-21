@@ -9,6 +9,7 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { BillyAgent } from './billy-agent';
 import { ConversationStore } from './conversation-store';
+import { uiHtml } from './ui-html';
 
 export interface Env {
 	AI: any; // Cloudflare Workers AI binding
@@ -20,7 +21,7 @@ export interface Env {
 	DEFAULT_MODEL?: string;
 }
 
-const app = new Hono<{ Bindings: Env }>();
+const app = new Hono();
 
 // CORS middleware
 app.use('/*', cors({
@@ -29,8 +30,13 @@ app.use('/*', cors({
 	allowHeaders: ['Content-Type', 'Authorization'],
 }));
 
-// Health check
+// Serve web UI
 app.get('/', (c) => {
+	return c.html(uiHtml);
+});
+
+// API info endpoint
+app.get('/api', (c) => {
 	return c.json({
 		agent: 'Billy Bullshit',
 		version: '1.0.0',
@@ -71,8 +77,8 @@ app.post('/chat', async (c) => {
 			return c.json({ error: 'No message provided. What, cat got your tongue?' }, 400);
 		}
 
-		const billy = new BillyAgent(c.env);
-		const conversationStore = new ConversationStore(c.env.CONVERSATIONS);
+		const billy = new BillyAgent((c.env as unknown as Env));
+		const conversationStore = new ConversationStore(((c.env as unknown as Env)).CONVERSATIONS);
 
 		// Load conversation history
 		const history = sessionId
@@ -120,7 +126,7 @@ app.post('/roast', async (c) => {
 			return c.json({ error: 'What am I supposed to roast? Thin air?' }, 400);
 		}
 
-		const billy = new BillyAgent(c.env);
+		const billy = new BillyAgent((c.env as unknown as Env));
 		const roast = await billy.roast(target, context);
 
 		return c.json({
@@ -147,7 +153,7 @@ app.post('/review', async (c) => {
 			return c.json({ error: 'No code to review. You expect me to critique thin air?' }, 400);
 		}
 
-		const billy = new BillyAgent(c.env);
+		const billy = new BillyAgent((c.env as unknown as Env));
 		const review = await billy.reviewCode(code, language, context);
 
 		return c.json({
@@ -174,7 +180,7 @@ app.post('/analyze', async (c) => {
 			return c.json({ error: 'Analyze what? Your lack of input?' }, 400);
 		}
 
-		const billy = new BillyAgent(c.env);
+		const billy = new BillyAgent((c.env as unknown as Env));
 		const analysis = await billy.analyze(subject, type);
 
 		return c.json({
@@ -201,7 +207,7 @@ app.post('/debate', async (c) => {
 			return c.json({ error: 'Need a position and topic. Come prepared.' }, 400);
 		}
 
-		const billy = new BillyAgent(c.env);
+		const billy = new BillyAgent((c.env as unknown as Env));
 		const counterArgument = await billy.debate(position, topic);
 
 		return c.json({
@@ -228,7 +234,7 @@ app.post('/stream', async (c) => {
 		return c.json({ error: 'No message to stream. Come on.' }, 400);
 	}
 
-	const billy = new BillyAgent(c.env);
+	const billy = new BillyAgent((c.env as unknown as Env));
 	const stream = await billy.stream(message);
 
 	return new Response(stream, {
