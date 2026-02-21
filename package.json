@@ -12,7 +12,10 @@
     "build": "esbuild src/index.ts --bundle --format=esm --outfile=dist/index.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest",
-    "validate": "npm run typecheck && npm run build"
+    "validate": "npm run typecheck && npm run build",
+    "setup:kv": "bash scripts/setup-kv.sh",
+    "deploy:prod": "bash scripts/deploy-production.sh",
+    "test:deployment": "bash scripts/test-deployment.sh"
   },
   "keywords": [
     "cloudflare-workers",
