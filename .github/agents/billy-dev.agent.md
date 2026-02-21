@@ -1,9 +1,6 @@
 ---
 name: Billy Dev
 description: Developer assistant for the billy-bullshit Cloudflare Worker. Helps navigate the codebase, add features, write tests, fix bugs, and maintain Billy's signature brutal honesty persona.
-tools:
-  - context7/resolve-library-id
-  - context7/get-library-docs
 mcp-servers:
   context7:
     type: http
