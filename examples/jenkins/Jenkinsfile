@@ -1,0 +1,188 @@
+// Jenkins Pipeline for Billy Bullshit Code Review
+// This Jenkinsfile integrates Billy into your Jenkins CI/CD pipeline
+
+pipeline {
+    agent any
+    
+    environment {
+        BILLY_API_URL = "${env.BILLY_API_URL ?: 'https://billy.chitty.cc'}"
+    }
+    
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+        
+        stage('Billy Code Review') {
+            when {
+                changeRequest()  // Run only on pull requests
+            }
+            steps {
+                script {
+                    echo '🔍 Running Billy Code Review...'
+                    
+                    // Get changed files
+                    def changedFiles = sh(
+                        script: '''
+                            git diff --name-only origin/${CHANGE_TARGET}...HEAD | grep -E '\\.(js|ts|jsx|tsx|py|java|go|rs|rb|php|cpp|c|cs)$' || true
+                        ''',
+                        returnStdout: true
+                    ).trim()
+                    
+                    if (!changedFiles) {
+                        echo 'ℹ️  No code files changed in this PR'
+                        return
+                    }
+                    
+                    def reviewResults = []
+                    def filesList = changedFiles.split('\n')
+                    
+                    filesList.each { file ->
+                        if (!file.trim()) return
+                        
+                        echo "Reviewing: ${file}"
+                        
+                        // Detect language
+                        def ext = file.tokenize('.').last()
+                        def lang = detectLanguage(ext)
+                        
+                        // Read file content
+                        if (!fileExists(file)) {
+                            echo "File not found: ${file}"
+                            return
+                        }
+                        
+                        def code = readFile(file)
+                        
+                        // Call Billy's API
+                        def response = sh(
+                            script: """
+                                curl -s -X POST "${BILLY_API_URL}/review" \
+                                  -H "Content-Type: application/json" \
+                                  -d @- <<EOF
+{
+  "code": ${groovy.json.JsonOutput.toJson(code)},
+  "language": "${lang}",
+  "context": "File: ${file} (Jenkins PR #${env.CHANGE_ID})"
+}
+EOF
+                            """,
+                            returnStdout: true
+                        ).trim()
+                        
+                        if (response) {
+                            try {
+                                def json = readJSON text: response
+                                if (json.review) {
+                                    reviewResults.add([
+                                        file: file,
+                                        review: json.review
+                                    ])
+                                    
+                                    echo "---"
+                                    echo json.review
+                                    echo "---"
+                                }
+                            } catch (Exception e) {
+                                echo "⚠️  Failed to parse review for ${file}: ${e.message}"
+                            }
+                        }
+                    }
+                    
+                    // Save review results as artifact
+                    if (reviewResults.size() > 0) {
+                        def reviewReport = generateReviewReport(reviewResults)
+                        writeFile file: 'billy-review.txt', text: reviewReport
+                        archiveArtifacts artifacts: 'billy-review.txt', allowEmptyArchive: true
+                        
+                        echo "✅ Billy review complete - check artifacts for full report"
+                        
+                        // Optionally post to PR comment (requires GitHub/GitLab plugin)
+                        // publishReviewComment(reviewReport)
+                    } else {
+                        echo "ℹ️  No issues found by Billy"
+                    }
+                }
+            }
+        }
+        
+        stage('Build') {
+            steps {
+                echo 'Building...'
+                // Your build steps here
+            }
+        }
+        
+        stage('Test') {
+            steps {
+                echo 'Testing...'
+                // Your test steps here
+            }
+        }
+    }
+    
+    post {
+        always {
+            echo 'Pipeline complete'
+        }
+        failure {
+            echo '❌ Pipeline failed'
+        }
+        success {
+            echo '✅ Pipeline succeeded'
+        }
+    }
+}
+
+// Helper function to detect language from file extension
+def detectLanguage(ext) {
+    def langMap = [
+        'js': 'javascript',
+        'jsx': 'javascript',
+        'ts': 'typescript',
+        'tsx': 'typescript',
+        'py': 'python',
+        'java': 'java',
+        'go': 'go',
+        'rs': 'rust',
+        'rb': 'ruby',
+        'php': 'php',
+        'cpp': 'cpp',
+        'cc': 'cpp',
+        'cxx': 'cpp',
+        'c': 'c',
+        'cs': 'csharp'
+    ]
+    return langMap[ext] ?: 'unknown'
+}
+
+// Helper function to generate review report
+def generateReviewReport(reviewResults) {
+    def report = """## 💩 Billy's Code Review
+
+> Calling BS on your BS code since 2024
+
+"""
+    
+    reviewResults.each { result ->
+        report += """### 📄 `${result.file}`
+
+```
+${result.review}
+```
+
+---
+
+"""
+    }
+    
+    report += """
+**Billy says:** 💩 BS detected and called out. You're welcome.
+
+_Powered by [Billy Bullshit](https://billy.chitty.cc) - Your brutally honest code reviewer_
+"""
+    
+    return report
+}

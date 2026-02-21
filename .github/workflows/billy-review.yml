@@ -1,0 +1,147 @@
+name: Billy Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - '**.js'
+      - '**.ts'
+      - '**.jsx'
+      - '**.tsx'
+      - '**.py'
+      - '**.java'
+      - '**.go'
+      - '**.rs'
+      - '**.rb'
+      - '**.php'
+      - '**.cpp'
+      - '**.c'
+      - '**.cs'
+
+jobs:
+  billy-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@v41
+        with:
+          files: |
+            **.js
+            **.ts
+            **.jsx
+            **.tsx
+            **.py
+            **.java
+            **.go
+            **.rs
+            **.rb
+            **.php
+            **.cpp
+            **.c
+            **.cs
+
+      - name: Review changed files with Billy
+        if: steps.changed-files.outputs.any_changed == 'true'
+        env:
+          BILLY_API_URL: ${{ secrets.BILLY_API_URL || 'https://billy.chitty.cc' }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Initialize review results
+          REVIEW_COMMENT="## 💩 Billy's Code Review\n\n"
+          REVIEW_COMMENT+="> Calling BS on your BS code since 2024\n\n"
+          
+          # Track if we found any issues
+          FOUND_ISSUES=false
+          
+          # Review each changed file
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            echo "Reviewing: $file"
+            
+            # Detect language from extension
+            ext="${file##*.}"
+            case "$ext" in
+              js) lang="javascript" ;;
+              ts) lang="typescript" ;;
+              jsx) lang="javascript" ;;
+              tsx) lang="typescript" ;;
+              py) lang="python" ;;
+              java) lang="java" ;;
+              go) lang="go" ;;
+              rs) lang="rust" ;;
+              rb) lang="ruby" ;;
+              php) lang="php" ;;
+              cpp|cc|cxx) lang="cpp" ;;
+              c) lang="c" ;;
+              cs) lang="csharp" ;;
+              *) lang="unknown" ;;
+            esac
+            
+            # Read file content
+            if [ ! -f "$file" ]; then
+              echo "File not found: $file"
+              continue
+            fi
+            
+            # Escape content for JSON
+            content=$(cat "$file" | jq -Rs .)
+            
+            # Create JSON payload
+            payload=$(jq -n \
+              --arg code "$content" \
+              --arg language "$lang" \
+              --arg context "File: $file (GitHub PR Review)" \
+              '{code: $code, language: $language, context: $context}')
+            
+            # Call Billy's API
+            response=$(curl -s -X POST "$BILLY_API_URL/review" \
+              -H "Content-Type: application/json" \
+              -d "$payload")
+            
+            # Check if we got a valid response
+            if [ $? -eq 0 ] && [ -n "$response" ]; then
+              review=$(echo "$response" | jq -r '.review // empty')
+              
+              if [ -n "$review" ]; then
+                FOUND_ISSUES=true
+                REVIEW_COMMENT+="### 📄 \`$file\`\n\n"
+                REVIEW_COMMENT+="\`\`\`\n$review\n\`\`\`\n\n"
+                REVIEW_COMMENT+="---\n\n"
+              fi
+            else
+              echo "Failed to get review for $file"
+            fi
+          done
+          
+          # Post review comment if we found issues
+          if [ "$FOUND_ISSUES" = true ]; then
+            REVIEW_COMMENT+="\n\n**Billy says:** 💩 BS detected and called out. You're welcome.\n\n"
+            REVIEW_COMMENT+="_Powered by [Billy Bullshit](https://billy.chitty.cc) - Your brutally honest code reviewer_"
+            
+            # Post comment to PR
+            curl -X POST \
+              -H "Authorization: token $GITHUB_TOKEN" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+              -d "$(jq -n --arg body "$REVIEW_COMMENT" '{body: $body}')"
+            
+            echo "✅ Review posted to PR"
+          else
+            echo "ℹ️  No issues found or no reviewable files changed"
+          fi
+
+      - name: Review summary
+        if: steps.changed-files.outputs.any_changed == 'true'
+        run: |
+          echo "## Billy Review Complete"
+          echo "Reviewed ${{ steps.changed-files.outputs.all_changed_files_count }} file(s)"
+          echo "Check PR comments for Billy's brutally honest feedback"
