@@ -92,12 +92,9 @@ jobs:
               continue
             fi
             
-            # Escape content for JSON
-            content=$(cat "$file" | jq -Rs .)
-            
-            # Create JSON payload
+            # Read file content and create JSON payload with proper escaping
             payload=$(jq -n \
-              --arg code "$content" \
+              --rawfile code "$file" \
               --arg language "$lang" \
               --arg context "File: $file (GitHub PR Review)" \
               '{code: $code, language: $language, context: $context}')

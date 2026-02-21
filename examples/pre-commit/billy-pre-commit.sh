@@ -78,19 +78,26 @@ for file in $STAGED_FILES; do
         *) lang="unknown" ;;
     esac
     
-    # Get file content from staging area
-    content=$(git show ":$file")
-    
-    # Create JSON payload
+    # Get file content from staging area and create JSON payload
     if command -v jq &> /dev/null; then
+        # Use jq for proper JSON encoding - write content to temp file for --rawfile
+        tmpfile=$(mktemp)
+        git show ":$file" > "$tmpfile"
         payload=$(jq -n \
-            --arg code "$content" \
+            --rawfile code "$tmpfile" \
             --arg language "$lang" \
             --arg context "File: $file (pre-commit)" \
             '{code: $code, language: $language, context: $context}')
+        rm -f "$tmpfile"
     else
-        # Fallback without jq (basic JSON escaping)
-        content_escaped=$(echo "$content" | sed 's/\\/\\\\/g' | sed 's/"/\\"/g' | awk '{printf "%s\\n", $0}')
+        # Fallback without jq using printf for better escaping
+        content=$(git show ":$file")
+        # Escape backslashes, quotes, newlines, tabs - basic but more robust
+        content_escaped=$(printf '%s' "$content" | \
+            sed 's/\\/\\\\/g' | \
+            sed 's/"/\\"/g' | \
+            sed 's/	/\\t/g' | \
+            sed ':a;N;$!ba;s/\n/\\n/g')
         payload="{\"code\":\"$content_escaped\",\"language\":\"$lang\",\"context\":\"File: $file (pre-commit)\"}"
     fi
     
@@ -103,8 +110,9 @@ for file in $STAGED_FILES; do
         if command -v jq &> /dev/null; then
             review=$(echo "$response" | jq -r '.review // empty')
         else
-            # Fallback: extract review field without jq
-            review=$(echo "$response" | grep -o '"review":"[^"]*"' | cut -d'"' -f4)
+            # Fallback: extract review using more robust parsing
+            # Look for "review":"..." and extract until the closing quote (handling escapes)
+            review=$(echo "$response" | sed -n 's/.*"review":"\([^"]*\)".*/\1/p' | sed 's/\\n/\n/g' | sed 's/\\t/\t/g' | sed 's/\\"/"/g')
         fi
         
         if [ -n "$review" ]; then

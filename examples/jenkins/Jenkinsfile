@@ -56,18 +56,19 @@ pipeline {
                         
                         def code = readFile(file)
                         
+                        // Create JSON payload properly
+                        def jsonPayload = groovy.json.JsonOutput.toJson([
+                            code: code,
+                            language: lang,
+                            context: "File: ${file} (Jenkins PR #${env.CHANGE_ID})"
+                        ])
+                        
                         // Call Billy's API
                         def response = sh(
                             script: """
                                 curl -s -X POST "${BILLY_API_URL}/review" \
                                   -H "Content-Type: application/json" \
-                                  -d @- <<EOF
-{
-  "code": ${groovy.json.JsonOutput.toJson(code)},
-  "language": "${lang}",
-  "context": "File: ${file} (Jenkins PR #${env.CHANGE_ID})"
-}
-EOF
+                                  -d '${jsonPayload}'
                             """,
                             returnStdout: true
                         ).trim()
