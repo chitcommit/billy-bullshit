@@ -22,6 +22,8 @@ export interface Env {
 	DEFAULT_MODEL?: string;
 }
 
+// Note: Hono v3 type parameter removed to avoid strict mode TypeScript errors
+// Using `c.env as unknown as Env` in endpoints for type safety
 const app = new Hono();
 
 // CORS middleware

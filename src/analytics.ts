@@ -133,9 +133,10 @@ export class AnalyticsService {
 	 * Parse BS score from review text (Billy includes it in responses)
 	 * Expected format: "BS SCORE: 7/10" or "BS Level: 7/10" or "BS Level: 7"
 	 * 
-	 * Note: This relies on Billy's consistent output format as defined in
-	 * billy-agent.ts reviewCode() method. If the AI model changes its output
-	 * format, this parsing may fail and return undefined.
+	 * IMPORTANT: This relies on Billy's consistent output format as defined in
+	 * billy-agent.ts reviewCode() method (lines 107-131). If the AI model 
+	 * changes its output format, this parsing may fail and return undefined.
+	 * The review prompt explicitly requests "BS SCORE: Rate 1-10" in the output.
 	 * 
 	 * @returns BS score (1-10) if found, undefined if not found or invalid
 	 */
@@ -158,7 +159,12 @@ export class AnalyticsService {
 
 	/**
 	 * Parse code smells from review text
-	 * Looks for Billy's structured issue markers
+	 * Looks for Billy's structured issue markers as defined in billy-agent.ts
+	 * 
+	 * IMPORTANT: This relies on Billy's output format including emoji markers
+	 * and section headers (CRITICAL ISSUES, MAJOR ISSUES, BS DETECTOR, WTAF MOMENTS)
+	 * as specified in the reviewCode() prompt. Changes to that format require
+	 * updating these patterns.
 	 */
 	parseCodeSmells(reviewText: string): string[] {
 		const smells: string[] = [];
