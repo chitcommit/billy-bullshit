@@ -693,13 +693,11 @@ curl -v https://billy.chitty.cc/review \
 for file in $(find . -name "*.py" ! -path "*/venv/*"); do
   echo "Reviewing: $file"
   
-  code=$(cat "$file")
-  
   curl -s -X POST https://billy.chitty.cc/review \
     -H "Content-Type: application/json" \
     -d @- <<EOF | jq -r '.review'
 {
-  "code": $(echo "$code" | jq -Rs .),
+  "code": $(jq -Rs . < "$file"),
   "language": "python",
   "context": "File: $file"
 }

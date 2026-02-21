@@ -63,12 +63,12 @@ pipeline {
                             context: "File: ${file} (Jenkins PR #${env.CHANGE_ID})"
                         ])
                         
-                        // Call Billy's API
+                        // Call Billy's API with properly escaped JSON
                         def response = sh(
                             script: """
                                 curl -s -X POST "${BILLY_API_URL}/review" \
                                   -H "Content-Type: application/json" \
-                                  -d '${jsonPayload}'
+                                  --data '${jsonPayload.replace("'", "'\\''")}' 
                             """,
                             returnStdout: true
                         ).trim()

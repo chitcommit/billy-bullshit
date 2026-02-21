@@ -110,9 +110,14 @@ for file in $STAGED_FILES; do
         if command -v jq &> /dev/null; then
             review=$(echo "$response" | jq -r '.review // empty')
         else
-            # Fallback: extract review using more robust parsing
-            # Look for "review":"..." and extract until the closing quote (handling escapes)
+            # Fallback: Basic extraction - note this may not handle all edge cases
+            # If review contains escaped quotes, recommend installing jq for proper parsing
             review=$(echo "$response" | sed -n 's/.*"review":"\([^"]*\)".*/\1/p' | sed 's/\\n/\n/g' | sed 's/\\t/\t/g' | sed 's/\\"/"/g')
+            
+            # If review is empty but response exists, warn about parsing limitations
+            if [ -z "$review" ] && echo "$response" | grep -q '"review"'; then
+                echo -e "${YELLOW}⚠️  Response parsing may be incomplete without jq. Install jq for better results.${NC}"
+            fi
         fi
         
         if [ -n "$review" ]; then
