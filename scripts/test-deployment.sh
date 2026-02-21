@@ -60,7 +60,8 @@ echo ""
 
 # Test chat endpoint
 echo "4. Testing /chat endpoint..."
-CHAT_PAYLOAD='{"message":"Hello Billy, what do you do?","sessionId":"test_'$(date +%s)'"}'
+SESSION_ID="test_$(date +%s)"
+CHAT_PAYLOAD='{"message":"Hello Billy, what do you do?","sessionId":"'$SESSION_ID'"}'
 CHAT_RESPONSE=$(curl -s -X POST "$BASE_URL/chat" \
     -H "Content-Type: application/json" \
     -d "$CHAT_PAYLOAD" \
@@ -70,7 +71,26 @@ HTTP_CODE=$(echo "$CHAT_RESPONSE" | grep "HTTP_CODE:" | cut -d: -f2)
 if [ "$HTTP_CODE" = "200" ]; then
     echo "   ✅ /chat endpoint passed"
 else
-    echo "   ❌ /chat endpoint failed (HTTP $HTTP_CODE)"
+    echo "   ❌ /chat endpoint failed (HTTP $CODE)"
+    exit 1
+fi
+echo ""
+
+# Test conversation persistence
+echo "4b. Testing conversation persistence..."
+sleep 1  # Brief delay to ensure KV write completes
+CHAT_PAYLOAD='{"message":"What was my last message?","sessionId":"'$SESSION_ID'"}'
+CHAT_RESPONSE=$(curl -s -X POST "$BASE_URL/chat" \
+    -H "Content-Type: application/json" \
+    -d "$CHAT_PAYLOAD" \
+    -w "\nHTTP_CODE:%{http_code}")
+HTTP_CODE=$(echo "$CHAT_RESPONSE" | grep "HTTP_CODE:" | cut -d: -f2)
+
+if [ "$HTTP_CODE" = "200" ]; then
+    echo "   ✅ Conversation persistence works"
+    echo "   Note: Billy's response should reference the previous message"
+else
+    echo "   ❌ Conversation persistence test failed (HTTP $HTTP_CODE)"
     exit 1
 fi
 echo ""

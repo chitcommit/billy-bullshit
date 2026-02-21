@@ -20,6 +20,8 @@ export interface Env {
 	DEFAULT_MODEL?: string;
 }
 
+// Note: Hono v3 has type constraints that require casting c.env to Env at usage points.
+// Consider upgrading to Hono v4 for improved type inference and better type safety.
 const app = new Hono();
 
 // CORS middleware
