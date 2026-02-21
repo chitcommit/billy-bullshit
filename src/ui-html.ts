@@ -550,7 +550,7 @@ export const uiHtml = `<!DOCTYPE html>
         },
         {
           title: 'Clean Validation',
-          code: 'const isValidEmail = (email) => /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+\$/.test(email);',
+          code: 'const isValidEmail = (email) => /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email);',
           language: 'javascript',
           bsScore: 2,
           category: 'fame'
