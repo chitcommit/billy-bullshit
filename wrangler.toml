@@ -23,6 +23,10 @@ preview_id = "your-preview-kv-namespace-id"
 [ai]
 binding = "AI"
 
+# Analytics Engine for tracking metrics
+[[analytics_engine_datasets]]
+binding = "ANALYTICS"
+
 # Secrets (set via: wrangler secret put SECRET_NAME)
 # - ANTHROPIC_API_KEY (for Claude API)
 # - OPENAI_API_KEY (optional, for OpenAI fallback)
