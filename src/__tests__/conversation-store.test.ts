@@ -1,6 +1,7 @@
 /**
  * Tests for ConversationStore class
  */
+// @ts-nocheck - Test file with intentionally loose types for readability
 
 import { describe, it, expect, beforeEach } from 'vitest';
 import { ConversationStore } from '../conversation-store';

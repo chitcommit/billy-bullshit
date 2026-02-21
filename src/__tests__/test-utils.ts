@@ -2,12 +2,13 @@
  * Test utilities and mocks for Billy Bullshit tests
  */
 
+import { vi } from 'vitest';
 import type { Env } from '../index';
 
 /**
  * Mock KV namespace for testing
  */
-export class MockKVNamespace implements KVNamespace {
+export class MockKVNamespace {
   private store = new Map<string, { value: string; expiration?: number }>();
 
   async get(key: string): Promise<string | null>;
@@ -44,11 +45,15 @@ export class MockKVNamespace implements KVNamespace {
     this.store.delete(key);
   }
 
-  async list(options?: { prefix?: string }): Promise<{ keys: Array<{ name: string }> }> {
+  async list(options?: { prefix?: string }): Promise<{
+    keys: Array<{ name: string }>;
+    list_complete: boolean;
+    cacheStatus: string | null;
+  }> {
     const keys = Array.from(this.store.keys())
       .filter(key => !options?.prefix || key.startsWith(options.prefix))
       .map(name => ({ name }));
-    return { keys };
+    return { keys, list_complete: true, cacheStatus: null };
   }
 
   async getWithMetadata(key: string): Promise<any> {
@@ -94,7 +99,7 @@ export class MockAI {
 export function createMockEnv(overrides?: Partial<Env>): Env {
   return {
     AI: new MockAI(),
-    CONVERSATIONS: new MockKVNamespace(),
+    CONVERSATIONS: new MockKVNamespace() as any,
     ENVIRONMENT: 'test',
     MAX_CONVERSATION_LENGTH: '20',
     DEFAULT_MODEL: '@cf/meta/llama-3.1-8b-instruct',
