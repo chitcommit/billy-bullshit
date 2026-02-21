@@ -22,6 +22,7 @@ No sugarcoating. No corporate BS. Just brutal, honest code review that you actua
 - ⚡ **Lightning Fast** - Runs on Cloudflare Workers AI
 - 🌍 **Global** - Deployed at the edge, worldwide
 - 💾 **Conversation Memory** - Billy remembers your conversation
+- 📊 **Analytics** - Track usage, performance, and BS scores
 
 ## Quick Start
 
@@ -180,6 +181,50 @@ curl -X POST https://billy.chitty.cc/stream \
   --no-buffer
 ```
 
+### POST `/feedback`
+Submit feedback on Billy's responses (thumbs up/down)
+
+```bash
+curl -X POST https://billy.chitty.cc/feedback \
+  -H "Content-Type: application/json" \
+  -d '{
+    "endpoint": "/review",
+    "feedback": "up",
+    "sessionId": "optional-session-id"
+  }'
+```
+
+**Response:**
+```json
+{
+  "message": "Feedback recorded. Thanks for your honesty.",
+  "feedback": "up",
+  "billy_says": "👍 Glad you appreciate brutal honesty."
+}
+```
+
+### GET `/analytics`
+View what metrics Billy is tracking
+
+```bash
+curl https://billy.chitty.cc/analytics
+```
+
+**Response:**
+```json
+{
+  "message": "Analytics are being tracked via Cloudflare Analytics Engine",
+  "metrics_tracked": {
+    "usage": ["API call volume by endpoint", "Language distribution", "BS score distribution"],
+    "performance": ["Response times", "AI model usage", "Error rates"],
+    "quality": ["User feedback", "Review success rate"]
+  },
+  "billy_says": "📊 All your BS is being tracked. Every. Single. Call."
+}
+```
+
+See [ANALYTICS.md](ANALYTICS.md) for detailed analytics documentation.
+
 ## Configuration
 
 ### Environment Variables
@@ -299,10 +344,12 @@ billy-bullshit/
 ├── src/
 │   ├── index.ts              # Main app + routes
 │   ├── billy-agent.ts        # Billy's personality + AI
-│   └── conversation-store.ts # KV conversation management
+│   ├── conversation-store.ts # KV conversation management
+│   └── analytics.ts          # Analytics tracking
 ├── wrangler.toml             # Cloudflare configuration
 ├── package.json              # Dependencies
-└── tsconfig.json             # TypeScript config
+├── tsconfig.json             # TypeScript config
+└── ANALYTICS.md              # Analytics documentation
 ```
 
 ### Testing
