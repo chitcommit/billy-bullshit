@@ -1,0 +1,189 @@
+# GitLab CI Integration for Billy Bullshit
+# This pipeline runs Billy code reviews on merge requests
+
+# Example configuration - copy this to your project's .gitlab-ci.yml
+
+stages:
+  - review
+
+variables:
+  BILLY_API_URL: "https://billy.chitty.cc"
+  # Or set a custom URL: BILLY_API_URL: "${CI_ENVIRONMENT_URL}/billy"
+
+billy-code-review:
+  stage: review
+  image: alpine:latest
+  
+  # Run only on merge requests
+  only:
+    - merge_requests
+  
+  before_script:
+    - apk add --no-cache curl jq git
+  
+  script:
+    - |
+      echo "🔍 Running Billy Code Review..."
+      
+      # Get changed files in the MR
+      git fetch origin $CI_MERGE_REQUEST_TARGET_BRANCH_NAME
+      CHANGED_FILES=$(git diff --name-only origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME...HEAD | grep -E '\.(js|ts|jsx|tsx|py|java|go|rs|rb|php|cpp|c|cs)$' || true)
+      
+      if [ -z "$CHANGED_FILES" ]; then
+        echo "ℹ️  No code files changed in this MR"
+        exit 0
+      fi
+      
+      # Initialize review output
+      REVIEW_OUTPUT="## 💩 Billy's Code Review\n\n"
+      REVIEW_OUTPUT+="> Calling BS on your BS code since 2024\n\n"
+      FOUND_ISSUES=false
+      
+      # Review each changed file
+      for file in $CHANGED_FILES; do
+        if [ ! -f "$file" ]; then
+          echo "File not found: $file"
+          continue
+        fi
+        
+        echo "Reviewing: $file"
+        
+        # Detect language
+        ext="${file##*.}"
+        case "$ext" in
+          js) lang="javascript" ;;
+          ts) lang="typescript" ;;
+          jsx) lang="javascript" ;;
+          tsx) lang="typescript" ;;
+          py) lang="python" ;;
+          java) lang="java" ;;
+          go) lang="go" ;;
+          rs) lang="rust" ;;
+          rb) lang="ruby" ;;
+          php) lang="php" ;;
+          cpp|cc|cxx) lang="cpp" ;;
+          c) lang="c" ;;
+          cs) lang="csharp" ;;
+          *) lang="unknown" ;;
+        esac
+        
+        # Create JSON payload with proper file content escaping
+        payload=$(jq -n \
+          --rawfile code "$file" \
+          --arg language "$lang" \
+          --arg context "File: $file (GitLab MR !${CI_MERGE_REQUEST_IID})" \
+          '{code: $code, language: $language, context: $context}')
+        
+        # Call Billy's API
+        response=$(curl -s -X POST "$BILLY_API_URL/review" \
+          -H "Content-Type: application/json" \
+          -d "$payload")
+        
+        if [ $? -eq 0 ] && [ -n "$response" ]; then
+          review=$(echo "$response" | jq -r '.review // empty')
+          
+          if [ -n "$review" ]; then
+            FOUND_ISSUES=true
+            REVIEW_OUTPUT+="### 📄 \`$file\`\n\n"
+            REVIEW_OUTPUT+="\`\`\`\n$review\n\`\`\`\n\n"
+            REVIEW_OUTPUT+="---\n\n"
+            
+            # Also log to console
+            echo "---"
+            echo "$review"
+            echo "---"
+          fi
+        else
+          echo "⚠️  Failed to get review for $file"
+        fi
+      done
+      
+      # Save review to artifact
+      if [ "$FOUND_ISSUES" = true ]; then
+        REVIEW_OUTPUT+="\n**Billy says:** 💩 BS detected and called out. You're welcome.\n\n"
+        REVIEW_OUTPUT+="_Powered by [Billy Bullshit](https://billy.chitty.cc) - Your brutally honest code reviewer_"
+        
+        echo -e "$REVIEW_OUTPUT" > billy-review.txt
+        echo "✅ Billy review complete - check artifacts for full report"
+        
+        # Post comment to MR (requires GITLAB_TOKEN with api scope)
+        if [ -n "${GITLAB_TOKEN:-}" ]; then
+          echo "Posting review to MR..."
+          curl -X POST \
+            -H "PRIVATE-TOKEN: $GITLAB_TOKEN" \
+            -H "Content-Type: application/json" \
+            "$CI_API_V4_URL/projects/$CI_PROJECT_ID/merge_requests/$CI_MERGE_REQUEST_IID/notes" \
+            -d "$(jq -n --arg body "$REVIEW_OUTPUT" '{body: $body}')"
+          echo "✅ Review posted to MR"
+        else
+          echo "ℹ️  GITLAB_TOKEN not set - review saved to artifacts only"
+        fi
+      else
+        echo "ℹ️  No issues found by Billy"
+        echo "No issues found" > billy-review.txt
+      fi
+  
+  artifacts:
+    paths:
+      - billy-review.txt
+    expire_in: 30 days
+    when: always
+
+# Alternative: Run Billy review on all code (not just changed files)
+billy-full-review:
+  stage: review
+  image: alpine:latest
+  
+  # Run manually or on schedule
+  when: manual
+  
+  before_script:
+    - apk add --no-cache curl jq
+  
+  script:
+    - |
+      echo "🔍 Running full Billy Code Review..."
+      
+      # Find all code files
+      CODE_FILES=$(find . -type f \( -name "*.js" -o -name "*.ts" -o -name "*.py" -o -name "*.java" -o -name "*.go" \) \
+        ! -path "*/node_modules/*" \
+        ! -path "*/vendor/*" \
+        ! -path "*/.git/*" \
+        ! -path "*/dist/*")
+      
+      REVIEW_OUTPUT="## 💩 Billy's Full Codebase Review\n\n"
+      
+      for file in $CODE_FILES; do
+        echo "Reviewing: $file"
+        
+        ext="${file##*.}"
+        case "$ext" in
+          js) lang="javascript" ;;
+          ts) lang="typescript" ;;
+          py) lang="python" ;;
+          java) lang="java" ;;
+          go) lang="go" ;;
+          *) lang="unknown" ;;
+        esac
+        
+        payload=$(jq -n --rawfile code "$file" --arg language "$lang" --arg context "File: $file" '{code: $code, language: $language, context: $context}')
+        
+        response=$(curl -s -X POST "$BILLY_API_URL/review" -H "Content-Type: application/json" -d "$payload")
+        review=$(echo "$response" | jq -r '.review // empty')
+        
+        if [ -n "$review" ]; then
+          REVIEW_OUTPUT+="### \`$file\`\n\n\`\`\`\n$review\n\`\`\`\n\n---\n\n"
+        fi
+      done
+      
+      echo -e "$REVIEW_OUTPUT" > billy-full-review.txt
+      echo "✅ Full review complete"
+  
+  artifacts:
+    paths:
+      - billy-full-review.txt
+    expire_in: 30 days
+
+# Required CI/CD Variables:
+# - BILLY_API_URL (optional, defaults to https://billy.chitty.cc)
+# - GITLAB_TOKEN (optional, for posting comments to MR - needs 'api' scope)
