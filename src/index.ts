@@ -9,10 +9,12 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { BillyAgent } from './billy-agent';
 import { ConversationStore } from './conversation-store';
+import { AnalyticsService } from './analytics';
 
 export interface Env {
 	AI: any; // Cloudflare Workers AI binding
 	CONVERSATIONS: KVNamespace; // KV for conversation history
+	ANALYTICS?: AnalyticsEngineDataset; // Analytics Engine for metrics
 	ANTHROPIC_API_KEY?: string;
 	OPENAI_API_KEY?: string;
 	ENVIRONMENT?: string;
@@ -20,8 +22,8 @@ export interface Env {
 	DEFAULT_MODEL?: string;
 }
 
-// Note: Hono v3 has type constraints that require casting c.env to Env at usage points.
-// Consider upgrading to Hono v4 for improved type inference and better type safety.
+// Note: Hono v3 type parameter removed to avoid strict mode TypeScript errors
+// Using `c.env as unknown as Env` in endpoints for type safety
 const app = new Hono();
 
 // CORS middleware
@@ -45,6 +47,8 @@ app.get('/', (c) => {
 			roast: '/roast',
 			analyze: '/analyze',
 			debate: '/debate',
+			feedback: '/feedback',
+			analytics: '/analytics',
 			health: '/health',
 		},
 		personality: {
@@ -66,14 +70,18 @@ app.get('/health', (c) => {
 
 // Chat endpoint - have a conversation with Billy
 app.post('/chat', async (c) => {
+	const startTime = Date.now();
+	const env = c.env as unknown as Env;
+	const analytics = new AnalyticsService(env.ANALYTICS);
+	
 	try {
 		const { message, sessionId } = await c.req.json();
 
 		if (!message) {
+			await analytics.trackError('/chat', 'missing_message', Date.now() - startTime);
 			return c.json({ error: 'No message provided. What, cat got your tongue?' }, 400);
 		}
 
-		const env = c.env as unknown as Env;
 		const billy = new BillyAgent(env);
 		const conversationStore = new ConversationStore(env.CONVERSATIONS);
 
@@ -84,6 +92,7 @@ app.post('/chat', async (c) => {
 
 		// Get Billy's response
 		const response = await billy.chat(message, history);
+		const responseTime = Date.now() - startTime;
 
 		// Save conversation
 		if (sessionId) {
@@ -99,6 +108,15 @@ app.post('/chat', async (c) => {
 			});
 		}
 
+		// Track analytics
+		await analytics.trackEvent({
+			endpoint: '/chat',
+			timestamp: Date.now(),
+			responseTime,
+			aiModel: (env.DEFAULT_MODEL || 'workers-ai') as string,
+			success: true,
+		});
+
 		return c.json({
 			response,
 			sessionId: sessionId || `billy_${Date.now()}`,
@@ -107,6 +125,7 @@ app.post('/chat', async (c) => {
 
 	} catch (error: any) {
 		console.error('Chat error:', error);
+		await analytics.trackError('/chat', error.name || 'unknown_error', Date.now() - startTime);
 		return c.json({
 			error: 'Something broke. Even I cant fix stupid code.',
 			details: error.message
@@ -116,16 +135,30 @@ app.post('/chat', async (c) => {
 
 // Roast endpoint - Billy roasts your code/idea/whatever
 app.post('/roast', async (c) => {
+	const startTime = Date.now();
+	const env = c.env as unknown as Env;
+	const analytics = new AnalyticsService(env.ANALYTICS);
+	
 	try {
 		const { target, context } = await c.req.json();
 
 		if (!target) {
+			await analytics.trackError('/roast', 'missing_target', Date.now() - startTime);
 			return c.json({ error: 'What am I supposed to roast? Thin air?' }, 400);
 		}
 
-		const env = c.env as unknown as Env;
 		const billy = new BillyAgent(env);
 		const roast = await billy.roast(target, context);
+		const responseTime = Date.now() - startTime;
+
+		// Track analytics
+		await analytics.trackEvent({
+			endpoint: '/roast',
+			timestamp: Date.now(),
+			responseTime,
+			aiModel: (env.DEFAULT_MODEL || 'workers-ai') as string,
+			success: true,
+		});
 
 		return c.json({
 			roast,
@@ -135,6 +168,7 @@ app.post('/roast', async (c) => {
 
 	} catch (error: any) {
 		console.error('Roast error:', error);
+		await analytics.trackError('/roast', error.name || 'unknown_error', Date.now() - startTime);
 		return c.json({
 			error: 'Cant even roast properly. Thats embarrassing.',
 			details: error.message
@@ -144,16 +178,35 @@ app.post('/roast', async (c) => {
 
 // Review endpoint - Billy's PRIMARY FUNCTION: Call out BS in your code
 app.post('/review', async (c) => {
+	const startTime = Date.now();
+	const env = c.env as unknown as Env;
+	const analytics = new AnalyticsService(env.ANALYTICS);
+	
 	try {
 		const { code, language, context } = await c.req.json();
 
 		if (!code) {
+			await analytics.trackError('/review', 'missing_code', Date.now() - startTime);
 			return c.json({ error: 'No code to review. You expect me to critique thin air?' }, 400);
 		}
 
-		const env = c.env as unknown as Env;
 		const billy = new BillyAgent(env);
 		const review = await billy.reviewCode(code, language, context);
+		const responseTime = Date.now() - startTime;
+
+		// Parse BS score and code smells from review
+		const bsScore = analytics.parseBsScore(review);
+		const codeSmells = analytics.parseCodeSmells(review);
+
+		// Track the review metrics
+		await analytics.trackReview({
+			language,
+			bsScore,
+			responseTime,
+			aiModel: (env.DEFAULT_MODEL || 'workers-ai') as string,
+			success: true,
+			codeSmells,
+		});
 
 		return c.json({
 			review,
@@ -163,6 +216,7 @@ app.post('/review', async (c) => {
 
 	} catch (error: any) {
 		console.error('Review error:', error);
+		await analytics.trackError('/review', error.name || 'unknown_error', Date.now() - startTime);
 		return c.json({
 			error: 'Code review failed. Your code might be too broken for me.',
 			details: error.message
@@ -172,16 +226,30 @@ app.post('/review', async (c) => {
 
 // Analyze endpoint - Billy analyzes something with brutal honesty
 app.post('/analyze', async (c) => {
+	const startTime = Date.now();
+	const env = c.env as unknown as Env;
+	const analytics = new AnalyticsService(env.ANALYTICS);
+	
 	try {
 		const { subject, type } = await c.req.json();
 
 		if (!subject) {
+			await analytics.trackError('/analyze', 'missing_subject', Date.now() - startTime);
 			return c.json({ error: 'Analyze what? Your lack of input?' }, 400);
 		}
 
-		const env = c.env as unknown as Env;
 		const billy = new BillyAgent(env);
 		const analysis = await billy.analyze(subject, type);
+		const responseTime = Date.now() - startTime;
+
+		// Track analytics
+		await analytics.trackEvent({
+			endpoint: '/analyze',
+			timestamp: Date.now(),
+			responseTime,
+			aiModel: (env.DEFAULT_MODEL || 'workers-ai') as string,
+			success: true,
+		});
 
 		return c.json({
 			analysis,
@@ -191,6 +259,7 @@ app.post('/analyze', async (c) => {
 
 	} catch (error: any) {
 		console.error('Analyze error:', error);
+		await analytics.trackError('/analyze', error.name || 'unknown_error', Date.now() - startTime);
 		return c.json({
 			error: 'Analysis failed. Maybe your input was too BS for me.',
 			details: error.message
@@ -200,16 +269,30 @@ app.post('/analyze', async (c) => {
 
 // Debate endpoint - argue with Billy (good luck)
 app.post('/debate', async (c) => {
+	const startTime = Date.now();
+	const env = c.env as unknown as Env;
+	const analytics = new AnalyticsService(env.ANALYTICS);
+	
 	try {
 		const { position, topic } = await c.req.json();
 
 		if (!position || !topic) {
+			await analytics.trackError('/debate', 'missing_params', Date.now() - startTime);
 			return c.json({ error: 'Need a position and topic. Come prepared.' }, 400);
 		}
 
-		const env = c.env as unknown as Env;
 		const billy = new BillyAgent(env);
 		const counterArgument = await billy.debate(position, topic);
+		const responseTime = Date.now() - startTime;
+
+		// Track analytics
+		await analytics.trackEvent({
+			endpoint: '/debate',
+			timestamp: Date.now(),
+			responseTime,
+			aiModel: (env.DEFAULT_MODEL || 'workers-ai') as string,
+			success: true,
+		});
 
 		return c.json({
 			topic,
@@ -220,6 +303,7 @@ app.post('/debate', async (c) => {
 
 	} catch (error: any) {
 		console.error('Debate error:', error);
+		await analytics.trackError('/debate', error.name || 'unknown_error', Date.now() - startTime);
 		return c.json({
 			error: 'Debate failed. You probably didnt have a good argument anyway.',
 			details: error.message
@@ -248,12 +332,89 @@ app.post('/stream', async (c) => {
 	});
 });
 
+// Feedback endpoint - track user satisfaction
+app.post('/feedback', async (c) => {
+	try {
+		const { endpoint, feedback, sessionId } = await c.req.json();
+
+		if (!endpoint || !feedback) {
+			return c.json({ error: 'Need endpoint and feedback (up or down). Come on.' }, 400);
+		}
+
+		if (feedback !== 'up' && feedback !== 'down') {
+			return c.json({ error: 'Feedback must be "up" or "down". Simple stuff.' }, 400);
+		}
+
+		const env = c.env as unknown as Env;
+		const analytics = new AnalyticsService(env.ANALYTICS);
+		await analytics.trackFeedback(endpoint, feedback, sessionId);
+
+		return c.json({
+			message: 'Feedback recorded. Thanks for your honesty.',
+			feedback,
+			billy_says: feedback === 'up' ? '👍 Glad you appreciate brutal honesty.' : '👎 Truth hurts, doesnt it?',
+		});
+
+	} catch (error: any) {
+		console.error('Feedback error:', error);
+		return c.json({
+			error: 'Couldnt save your feedback. Try again.',
+			details: error.message
+		}, 500);
+	}
+});
+
+// Analytics dashboard endpoint - view Billy's stats
+app.get('/analytics', async (c) => {
+	try {
+		const env = c.env as unknown as Env;
+		const analytics = new AnalyticsService(env.ANALYTICS);
+
+		// Return basic info about what's being tracked
+		// Note: Analytics Engine data is queried via GraphQL API separately
+		return c.json({
+			message: 'Analytics are being tracked via Cloudflare Analytics Engine',
+			metrics_tracked: {
+				usage: [
+					'API call volume by endpoint',
+					'Language distribution in code reviews',
+					'BS score distribution',
+					'Code smell frequency (CRITICAL, MAJOR, BS, WTAF)'
+				],
+				performance: [
+					'Response times per endpoint',
+					'AI model usage (Workers AI, Anthropic, OpenAI)',
+					'Error rates by type',
+					'Fallback usage tracking'
+				],
+				quality: [
+					'User feedback (thumbs up/down)',
+					'Review success rate'
+				]
+			},
+			query_instructions: {
+				note: 'Use Cloudflare GraphQL API to query Analytics Engine dataset',
+				dataset: 'ANALYTICS binding',
+				documentation: 'https://developers.cloudflare.com/analytics/analytics-engine/'
+			},
+			billy_says: '📊 All your BS is being tracked. Every. Single. Call.',
+		});
+
+	} catch (error: any) {
+		console.error('Analytics error:', error);
+		return c.json({
+			error: 'Couldnt fetch analytics. Probably too much BS to process.',
+			details: error.message
+		}, 500);
+	}
+});
+
 // 404 handler
 app.notFound((c) => {
 	return c.json({
 		error: 'Not Found',
 		billy_says: 'Wrong URL, genius. Try reading the docs.',
-		endpoints: ['/chat', '/roast', '/analyze', '/debate', '/health']
+		endpoints: ['/chat', '/roast', '/analyze', '/debate', '/feedback', '/analytics', '/health']
 	}, 404);
 });
 
