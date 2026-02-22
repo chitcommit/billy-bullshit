@@ -6,6 +6,18 @@ Billy's PRIMARY mission: **Call out bullshit code.** 💩
 
 No sugarcoating. No corporate BS. Just brutal, honest code review that you actually need.
 
+## 🌐 Web UI
+
+**NEW!** Billy now has a web interface! Visit the root URL to access the interactive UI.
+
+- **Code Review Interface** - Submit code, select language, get roasted
+- **Chat Interface** - Have a conversation with Billy
+- **Gallery** - Browse examples of terrible code (Hall of Shame) and clean code (Hall of Fame)
+- **Mobile Responsive** - Works on all devices
+- **Real-time** - BS Score visualization and categorized issues
+
+See [UI_README.md](./UI_README.md) for details.
+
 ## Features
 
 - 💩 **CODE REVIEW** - Billy's PRIMARY function (what he was MADE for)
@@ -85,7 +97,10 @@ npm run test:deployment
 ## API Endpoints
 
 ### GET `/`
-Health check and API information
+Web UI (HTML interface)
+
+### GET `/api`
+API information and health check
 
 ### POST `/review` 💩 **PRIMARY FUNCTION**
 

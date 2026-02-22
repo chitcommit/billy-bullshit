@@ -27,7 +27,8 @@
   "author": "ChittyOS Team",
   "license": "MIT",
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260228.0",
+        "@cloudflare/kv-asset-handler": "^0.4.2",,
+        "@cloudflare/workers-types": "^4.20260228.0",
     "@types/node": "^20.10.6",
     "@vitest/coverage-v8": "^1.6.1",
     "esbuild": "^0.19.11",
