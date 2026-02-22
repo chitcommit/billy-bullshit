@@ -11,11 +11,12 @@
     "tail": "wrangler tail",
     "build": "esbuild src/index.ts --bundle --format=esm --outfile=dist/index.js",
     "typecheck": "tsc --noEmit",
-    "test": "vitest",
-    "validate": "npm run typecheck && npm run build",
     "setup:kv": "bash scripts/setup-kv.sh",
     "deploy:prod": "bash scripts/deploy-production.sh",
     "test:deployment": "bash scripts/test-deployment.sh"
+    "test": "vitest run",
+    "test:watch": "vitest --watch",
+    "validate": "npm run typecheck && npm run build"
   },
   "keywords": [
     "cloudflare-workers",
@@ -26,15 +27,15 @@
   "author": "ChittyOS Team",
   "license": "MIT",
   "devDependencies": {
-    "@cloudflare/workers-types": "^4.20231218.0",
+    "@cloudflare/workers-types": "^4.20260228.0",
     "@types/node": "^20.10.6",
     "esbuild": "^0.19.11",
     "typescript": "^5.3.3",
-    "vitest": "^1.1.0",
-    "wrangler": "^3.22.1"
+    "vitest": "^4.0.18",
+    "wrangler": "^4.67.0"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.18.0",
-    "hono": "^3.12.8"
+    "@anthropic-ai/sdk": "^0.78.0",
+    "hono": "^4.12.1"
   }
 }
