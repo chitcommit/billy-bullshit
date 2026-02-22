@@ -1,0 +1,66 @@
+name: Test Suite
+
+on:
+  push:
+    branches: [ main, develop, 'copilot/**' ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: read
+    
+    strategy:
+      matrix:
+        node-version: [20.x]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+    
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+    
+    - name: Install dependencies
+      run: npm ci
+    
+    - name: Type check
+      run: npm run typecheck
+    
+    - name: Run tests
+      run: npm test -- --coverage
+    
+    - name: Upload coverage reports
+      uses: codecov/codecov-action@v4
+      if: always()
+      with:
+        files: ./coverage/coverage-final.json
+        fail_ci_if_error: false
+      continue-on-error: true
+    
+    - name: Check coverage threshold
+      run: |
+        node -e "
+        const coverage = require('./coverage/coverage-summary.json');
+        const total = coverage.total;
+        const threshold = 80;
+        
+        console.log('Coverage Summary:');
+        console.log('Statements:', total.statements.pct + '%');
+        console.log('Branches:', total.branches.pct + '%');
+        console.log('Functions:', total.functions.pct + '%');
+        console.log('Lines:', total.lines.pct + '%');
+        
+        if (total.statements.pct < threshold) {
+          console.error('❌ Statement coverage below ' + threshold + '%');
+          process.exit(1);
+        }
+        
+        console.log('✅ Coverage meets the ' + threshold + '% threshold');
+        "

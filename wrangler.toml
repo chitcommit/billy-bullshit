@@ -14,14 +14,22 @@ routes = [
 ]
 
 # KV namespaces for conversation history
+# Provision before deploying:
+#   wrangler kv:namespace create CONVERSATIONS
+#   wrangler kv:namespace create CONVERSATIONS --preview
+#   Then paste the namespace IDs below
 [[kv_namespaces]]
 binding = "CONVERSATIONS"
-id = "your-kv-namespace-id"
-preview_id = "your-preview-kv-namespace-id"
+id = ""  # REQUIRED: run command above and paste ID here
+preview_id = ""  # REQUIRED: run command above and paste ID here
 
 # AI binding for Cloudflare Workers AI
 [ai]
 binding = "AI"
+
+# Analytics Engine for tracking metrics
+[[analytics_engine_datasets]]
+binding = "ANALYTICS"
 
 # Secrets (set via: wrangler secret put SECRET_NAME)
 # - ANTHROPIC_API_KEY (for Claude API)

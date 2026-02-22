@@ -34,6 +34,7 @@ See [UI_README.md](./UI_README.md) for details.
 - ⚡ **Lightning Fast** - Runs on Cloudflare Workers AI
 - 🌍 **Global** - Deployed at the edge, worldwide
 - 💾 **Conversation Memory** - Billy remembers your conversation
+- 📊 **Analytics** - Track usage, performance, and BS scores
 
 ## Quick Start
 
@@ -74,13 +75,24 @@ curl http://localhost:8787
 
 ### Deployment
 
+**Quick Start:**
 ```bash
-# Deploy to production
-npm run deploy
+# 1. Set up KV namespaces
+npm run setup:kv
 
-# Or deploy to staging
-wrangler deploy --env staging
+# 2. Deploy to production (automated)
+npm run deploy:prod
+
+# 3. Test deployment
+npm run test:deployment
 ```
+
+**See also:**
+- 📋 [Quick Deployment Guide](QUICK_DEPLOY.md) - Fast track to production
+- 📚 [Full Deployment Guide](DEPLOYMENT.md) - Detailed instructions
+- ✅ [Deployment Checklist](DEPLOYMENT_CHECKLIST.md) - Step-by-step checklist
+- 🔒 [Security Guide](SECURITY.md) - Security best practices
+- 📊 [Monitoring Guide](MONITORING.md) - Post-deployment monitoring
 
 ## API Endpoints
 
@@ -194,6 +206,50 @@ curl -X POST https://billy.chitty.cc/stream \
   -d '{"message": "Tell me about AI"}' \
   --no-buffer
 ```
+
+### POST `/feedback`
+Submit feedback on Billy's responses (thumbs up/down)
+
+```bash
+curl -X POST https://billy.chitty.cc/feedback \
+  -H "Content-Type: application/json" \
+  -d '{
+    "endpoint": "/review",
+    "feedback": "up",
+    "sessionId": "optional-session-id"
+  }'
+```
+
+**Response:**
+```json
+{
+  "message": "Feedback recorded. Thanks for your honesty.",
+  "feedback": "up",
+  "billy_says": "👍 Glad you appreciate brutal honesty."
+}
+```
+
+### GET `/analytics`
+View what metrics Billy is tracking
+
+```bash
+curl https://billy.chitty.cc/analytics
+```
+
+**Response:**
+```json
+{
+  "message": "Analytics are being tracked via Cloudflare Analytics Engine",
+  "metrics_tracked": {
+    "usage": ["API call volume by endpoint", "Language distribution", "BS score distribution"],
+    "performance": ["Response times", "AI model usage", "Error rates"],
+    "quality": ["User feedback", "Review success rate"]
+  },
+  "billy_says": "📊 All your BS is being tracked. Every. Single. Call."
+}
+```
+
+See [ANALYTICS.md](ANALYTICS.md) for detailed analytics documentation.
 
 ## Configuration
 
@@ -314,10 +370,12 @@ billy-bullshit/
 ├── src/
 │   ├── index.ts              # Main app + routes
 │   ├── billy-agent.ts        # Billy's personality + AI
-│   └── conversation-store.ts # KV conversation management
+│   ├── conversation-store.ts # KV conversation management
+│   └── analytics.ts          # Analytics tracking
 ├── wrangler.toml             # Cloudflare configuration
 ├── package.json              # Dependencies
-└── tsconfig.json             # TypeScript config
+├── tsconfig.json             # TypeScript config
+└── ANALYTICS.md              # Analytics documentation
 ```
 
 ### Testing
@@ -342,6 +400,43 @@ npm run tail
 # Or with wrangler
 wrangler tail
 ```
+
+## CI/CD Integration
+
+Integrate Billy into your development workflow to automatically review code in your CI/CD pipeline.
+
+### Available Integrations
+
+- **GitHub Actions** - Automatic PR code reviews with comments
+- **GitLab CI** - MR reviews with artifacts and optional comments
+- **Jenkins** - Pipeline integration with build artifacts
+- **Pre-commit Hook** - Local code review before every commit
+
+### Quick Examples
+
+**GitHub Actions** - Add to `.github/workflows/billy-review.yml`:
+```yaml
+name: Billy Code Review
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+jobs:
+  billy-review:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Review with Billy
+        run: |
+          # Review changed files...
+```
+
+**Pre-commit Hook** - Install locally:
+```bash
+cp examples/pre-commit/billy-pre-commit.sh .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
+```
+
+📚 **Full documentation**: [CI/CD Integration Guide](docs/CI_CD_INTEGRATIONS.md)
 
 ## Performance
 
